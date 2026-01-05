@@ -1,0 +1,813 @@
+//সেটিংস প্যানেল (লাইসেন্স ছাড়া)
+(async function () {
+  // 0. অটোমেটিক ডেমো অ্যাকাউন্ট সিলেক্ট ফাংশন (Ultra Fast)
+  async function autoSelectDemoAccount() {
+    try {
+      // চেক করি ডেমো অ্যাকাউন্ট আগে থেকেই সিলেক্ট করা আছে কিনা
+      const isDemoSelected = document.querySelector('.---react-features-Usermenu-styles-module__infoName--SfrTV.---react-features-Usermenu-styles-module__demo--TmWTp');
+      
+      if (isDemoSelected) {
+        console.log('✓ Demo Account already selected');
+        return; // ডেমো অ্যাকাউন্ট আগে থেকেই সিলেক্ট করা আছে, কিছু করার দরকার নেই
+      }
+
+      console.log('⚡ Starting ultra-fast demo account selection...');
+      
+      // স্টেপ 1: ড্রপডাউন বাটনে ক্লিক করি
+      const dropdownButton = document.querySelector('.---react-features-Usermenu-styles-module__infoCaret--P6gJl');
+      if (!dropdownButton) {
+        console.log('× Dropdown button not found');
+        return;
+      }
+      
+      dropdownButton.click();
+      
+      // মিনিমাল ওয়েট - শুধুমাত্র 30ms
+      await new Promise(resolve => setTimeout(resolve, 30));
+      
+      // স্টেপ 2: ডেমো অ্যাকাউন্ট লিংকে ক্লিক করি
+      const demoAccountLink = document.querySelector('a[href="/en/demo-trade"]');
+      if (!demoAccountLink) {
+        console.log('× Demo account link not found');
+        return;
+      }
+      
+      demoAccountLink.click();
+      
+      // পপআপের জন্য মিনিমাল ওয়েট - 50ms
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // স্টেপ 3: পপআপ ক্লোজ করি (উভয় সিলেক্টর একসাথে চেক)
+      const closeButton = document.querySelector('.modal-account-type-changed__body-button, .modal__close');
+      if (closeButton) {
+        closeButton.click();
+        console.log('✓ Demo account selected in ~80ms!');
+      }
+      
+    } catch (error) {
+      console.log('× Error:', error.message);
+    }
+  }
+
+  // ইনস্ট্যান্ট এক্সিকিউশন - পেজ লোডের সাথে সাথে
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(autoSelectDemoAccount, 200);
+    });
+  } else {
+    // পেজ আগে থেকেই লোড হয়ে গেছে - তাৎক্ষণিক রান
+    setTimeout(autoSelectDemoAccount, 200);
+  }
+
+  if (typeof Swal === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  let settingsPopup = null;
+  let demoBalance = parseInt(localStorage.getItem('demoBalance')) || 12500; // লোড করা ডেমো ব্যালেন্স
+
+  // UI Styles
+const styles = `
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    
+    /* SweetAlert High Z-Index */
+    .swal-high-zindex {
+      z-index: 10000 !important;
+    }
+    
+    .swal2-container.swal-high-zindex {
+      z-index: 10000 !important;
+    }
+    
+    #settingsPopup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      width: 100%;
+      max-width: 380px;
+      max-height: 92vh;
+      padding: 15px;
+      background: rgba(30, 11, 54, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+      text-align: center;
+      border: 1px solid rgba(248, 0, 255, 0.2);
+      overflow-y: auto;
+      overflow-x: hidden;
+      font-family: 'Poppins', sans-serif;
+      color: #f8f8f8;
+      z-index: 9999;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    
+    #settingsPopup::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    #settingsPopup::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+    
+    #settingsPopup::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #8333ff, #f900ff);
+      border-radius: 10px;
+    }
+    
+    #settingsPopup::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(to right, #f900ff, #00d9ff);
+      background-size: 200% 200%;
+      animation: gradientFlow 3s linear infinite;
+      border-radius: 12px 12px 0 0;
+    }
+    
+    @keyframes gradientFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    #settingsPopup.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    #settingsPopup.hide {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+
+    #settingsPopup h2 {
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      padding: 6px;
+      background: linear-gradient(90deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.9) 100%);
+      border-radius: 8px;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+      border: 1px solid rgba(248, 0, 255, 0.3);
+      line-height: 1.4;
+    }
+    
+    #settingsPopup h2 .warning-text {
+      color: #ff3366;
+      font-weight: 700;
+      animation: warningPulse 2s infinite alternate;
+    }
+    
+    @keyframes warningPulse {
+      from { text-shadow: 0 0 5px rgba(255, 51, 102, 0.5); }
+      to { text-shadow: 0 0 15px rgba(255, 51, 102, 0.9), 0 0 20px rgba(255, 51, 102, 0.7); }
+    }
+    
+    #settingsPopup h3 {
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      margin: 10px 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: linear-gradient(to right, #f900ff, #00d9ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      position: relative;
+      display: inline-block;
+    }
+    
+    #settingsPopup h3::after {
+      content: '';
+      position: absolute;
+      width: 60%;
+      height: 2px;
+      bottom: -8px;
+      left: 20%;
+      background: linear-gradient(to right, #f900ff, #00d9ff);
+      border-radius: 10px;
+    }
+    
+    .telegram-link {
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    
+    .telegram-link img {
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 15px rgba(248, 0, 255, 0.5);
+      transition: all 0.3s ease;
+    }
+    
+    .telegram-link img:hover {
+      transform: scale(1.1) rotate(5deg);
+      box-shadow: 0 0 20px rgba(248, 0, 255, 0.7);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    #settingsPopup label {
+      display: block; 
+      margin-bottom: 8px; 
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 11px;
+      font-weight: 500;
+      text-align: left;
+    }
+
+    #settingsPopup input, #settingsPopup select {
+      width: 100%; 
+      padding: 8px; 
+      margin-top: 3px; 
+      border: 2px solid rgba(255, 255, 255, 0.2); 
+      border-radius: 10px; 
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 14px;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+      transition: all 0.3s ease;
+    }
+    
+    #settingsPopup input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    #settingsPopup input:focus, #settingsPopup select:focus {
+      outline: none;
+      border-color: #f900ff;
+      box-shadow: 0 0 0 3px rgba(248, 0, 255, 0.3);
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    /* Country Flag Select Dropdown Styling */
+    #countryFlagSelect {
+      background: rgba(30, 11, 54, 0.9);
+      color: white;
+      cursor: pointer;
+    }
+    
+    #countryFlagSelect option {
+      background: #1e0b36;
+      color: white;
+      padding: 10px;
+      font-size: 14px;
+    }
+    
+    #countryFlagSelect option:hover {
+      background: rgba(248, 0, 255, 0.2);
+    }
+    
+    #countryFlagSelect option:checked {
+      background: linear-gradient(135deg, #8333ff, #f900ff);
+      color: white;
+      font-weight: 600;
+    }
+    
+    #settingsPopup small {
+      display: block;
+      margin-top: -5px;
+      margin-bottom: 8px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 9px;
+      font-style: italic;
+      text-align: left;
+    }
+
+    #settingsPopup button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      overflow: hidden;
+      font-family: 'Poppins', sans-serif;
+    }
+    
+    #settingsPopup button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: all 0.5s ease;
+    }
+    
+    #settingsPopup button:hover::before {
+      left: 100%;
+    }
+    
+    #settingsPopup button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    #settingsPopup button:active {
+      transform: translateY(0);
+    }
+    
+    #saveButton, #setDemoBtn {
+      background: linear-gradient(135deg, #8333ff, #f900ff);
+      color: white;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    #settingsPopup button.close-btn {
+      background: linear-gradient(135deg, #ff3366, #ff5757);
+      color: white;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    #settingsPopup button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    #settingsPopup button:disabled:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    #demoBalanceSection {
+      margin-top: 10px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .message-popup {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      padding: 15px 20px;
+      color: white;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      z-index: 10001;
+      max-width: 300px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-family: 'Poppins', sans-serif;
+    }
+    
+    .message-popup.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .message-popup.success {
+      background: rgba(0, 255, 163, 0.15);
+      color: #00ffa3;
+      box-shadow: 0 0 15px rgba(0, 255, 163, 0.3);
+      border: 1px solid rgba(0, 255, 163, 0.2);
+    }
+    
+    .message-popup.error {
+      background: rgba(255, 51, 102, 0.15);
+      color: #ff3366;
+      box-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+      border: 1px solid rgba(255, 51, 102, 0.2);
+    }
+    
+    #centeredDeveloperMessage {
+      position: fixed; 
+      top: 50%; 
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: white; 
+      padding: 25px 45px; 
+      border-radius: 15px;
+      font-size: 18px; 
+      font-weight: bold;
+      z-index: 10004; 
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 2px solid rgba(248, 0, 255, 0.5);
+      font-family: 'Poppins', sans-serif;
+      text-align: center;
+    }
+    
+    /* Hide original flag/name while loading and prepare for instant replacement */
+    .jisanx-leaderboard-loading .position__header-name {
+        opacity: 0 !important;
+    }
+
+    #demoBalanceInput {
+      width: 100%;
+      padding: 8px;
+      font-size: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      box-sizing: border-box;
+    }
+
+    #demoBalanceStatus {
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* অপ্রয়োজনীয় স্পেস কমাতে */
+    #settingsPopup br {
+      display: none;
+    }
+    
+    /* রিফ্রেশ বাটনের জন্য CSS */
+    #refreshBalanceBtn {
+      position: absolute; 
+      top: 30px; 
+      right: 8px;
+      cursor: pointer;
+      width: 26px; 
+      height: 26px;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      border-radius: 50%; 
+      background: rgba(248, 0, 255, 0.2);
+      border: 2px solid rgba(248, 0, 255, 0.4);
+      transition: all 0.3s ease;
+    }
+    
+    #refreshBalanceBtn:hover { 
+      background: rgba(248, 0, 255, 0.3);
+      transform: scale(1.1);
+      box-shadow: 0 0 15px rgba(248, 0, 255, 0.5);
+    }
+    
+    #refreshBalanceBtn svg { 
+      width: 14px; 
+      height: 14px; 
+      fill: #f900ff; 
+    }
+    
+    @keyframes spin { 
+      from { transform: rotate(0deg); } 
+      to { transform: rotate(360deg); } 
+    }
+    
+    .spinning { 
+      animation: spin 0.6s linear; 
+    }
+    
+    /* Mobile Responsive */
+    @media screen and (max-width: 480px) {
+      #settingsPopup {
+        padding: 12px;
+        max-width: 92%;
+        max-height: 94vh;
+      }
+      
+      #settingsPopup h2 {
+        font-size: 9px;
+        padding: 5px;
+        margin-bottom: 6px;
+        line-height: 1.3;
+      }
+      
+      #settingsPopup h3 {
+        font-size: 12px;
+        margin: 8px 0 6px 0;
+      }
+      
+      #settingsPopup h3::after {
+        bottom: -5px;
+      }
+      
+      .telegram-link {
+        margin-bottom: 6px;
+      }
+      
+      .telegram-link img {
+        width: 32px;
+        height: 32px;
+      }
+      
+      #settingsPopup input, #settingsPopup select {
+        padding: 7px;
+        font-size: 12px;
+      }
+      
+      #settingsPopup button {
+        padding: 7px;
+        font-size: 12px;
+      }
+      
+      #settingsPopup label {
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+      
+      #settingsPopup small {
+        font-size: 8px;
+        margin-top: -4px;
+        margin-bottom: 6px;
+      }
+      
+      #refreshBalanceBtn {
+        top: 27px;
+        width: 24px;
+        height: 24px;
+      }
+      
+      #refreshBalanceBtn svg {
+        width: 13px;
+        height: 13px;
+      }
+      
+      #demoBalanceSection {
+        padding: 10px;
+        margin-top: 8px;
+      }
+      
+      #demoBalanceInput {
+        padding: 7px;
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+    }
+    
+    @media screen and (max-height: 700px) {
+      #settingsPopup {
+        max-height: 92vh;
+        padding: 15px;
+      }
+      
+      #settingsPopup h2 {
+        margin-bottom: 10px;
+      }
+      
+      .telegram-link {
+        margin-bottom: 10px;
+      }
+      
+      #settingsPopup label {
+        margin-bottom: 10px;
+      }
+      
+      #settingsPopup button {
+        margin-top: 8px;
+        padding: 10px;
+      }
+    }
+`;
+
+  // Display Message Function
+  function displayMessage(message, duration = 3000, type = 'success') {
+    const messageElement = document.createElement('div');
+    messageElement.className = `message-popup ${type}`;
+    messageElement.textContent = message;
+    document.body.appendChild(messageElement);
+    
+    setTimeout(() => {
+      messageElement.classList.add('show');
+    }, 10);
+
+    setTimeout(() => {
+      messageElement.classList.remove('show');
+      setTimeout(() => messageElement.remove(), 500);
+    }, duration);
+  }
+
+  // Centered Message Function
+  function showCenteredMessage(text, duration) {
+    const el = document.createElement('div');
+    el.id = 'centeredDeveloperMessage';
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(() => {
+        el.style.opacity = '1';
+    }, 10);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 500);
+    }, duration);
+  }
+
+  // Create Settings Popup (লাইসেন্স ছাড়া)
+  async function createSettingsPopup() {
+    const popup = document.createElement('div');
+    popup.innerHTML = `
+      <div id="settingsPopup">
+        <h2>Developer: <strong>JISAN X</strong> - <span class="warning-text">Buying from others will result in fraud!</span></h2>
+        <a href="https://t.me/treaderjisanx" target="_blank" class="telegram-link">
+            <img src="https://i.postimg.cc/52k5pJD3/photo-2025-05-11-11-00-00.jpg" alt="Telegram">
+        </a>
+        
+        <label>Leaderboard Name:
+            <input type="text" id="lname" placeholder="Enter Name">
+        </label>
+        
+        <div style="position: relative;">
+            <label>Leaderboard Balance:
+                <input type="number" id="iblafp" placeholder="Enter Balance">
+            </label>
+            <span id="refreshBalanceBtn" title="Fetch Current Balance">
+                <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"></path></svg>
+            </span>
+        </div>
+
+        <label>Mid Position:
+          <input type="number" id="midPosition" value="1690">
+        </label>
+        <label>Maximum Position:
+          <input type="number" id="basePosition" value="789345">
+        </label>
+        <label>Profile Photo Link:
+          <input type="text" id="profilePhotoUrl" placeholder="Enter Profile Photo Link">
+          <small>Example: /en/user/avatar/view/07/90/87/46/avatar_8c7e009cd96f2e43f9d3237baab07071.png</small>
+        </label>
+        <label>Country Flag:
+           <select id="countryFlagSelect">
+                <option value="bd">🇧🇩 Bangladesh</option>
+           </select>
+        </label>
+
+        <div id="demoBalanceSection">
+          <h3>Demo Balance Settings</h3>
+          <input type="number" id="demoBalanceInput" placeholder="Enter demo balance" value="${demoBalance}">
+          <button id="setDemoBtn">Update Demo Balance</button>
+          <div id="demoBalanceStatus"></div>
+        </div>
+
+        <button id="saveButton">Save Settings</button>
+        <button class="close-btn">Close</button>
+      </div>
+    `;
+    document.body.appendChild(popup);
+    settingsPopup = document.getElementById("settingsPopup");
+
+    // Set default values from localStorage or use defaults
+    document.getElementById("lname").value = localStorage.getItem('leaderboardName') || "";
+    document.getElementById("iblafp").value = localStorage.getItem('leaderboardBalance') || "";
+    document.getElementById("midPosition").value = localStorage.getItem('midPosition') || "1690";
+    document.getElementById("basePosition").value = localStorage.getItem('basePosition') || "789345";
+    document.getElementById("profilePhotoUrl").value = localStorage.getItem('profilePhotoUrl') || "";
+    document.getElementById("countryFlagSelect").value = "bd"; // শুধুমাত্র বাংলাদেশ
+
+    // Refresh Balance Button Event Listener
+    const refreshBtn = document.getElementById('refreshBalanceBtn');
+    refreshBtn?.addEventListener('click', () => {
+        refreshBtn.classList.add('spinning');
+        const balanceElement = document.querySelector('.---react-features-Usermenu-styles-module__infoBalance--pVBHU');
+        if (!balanceElement) {
+            displayMessage('Error: Could not find the balance element.');
+            setTimeout(() => refreshBtn.classList.remove('spinning'), 500);
+            return;
+        }
+        const balanceText = balanceElement.textContent;
+        const processedBalance = balanceText.replace(/\D/g, '');
+        document.getElementById('iblafp').value = processedBalance;
+        displayMessage('Balance updated!');
+        setTimeout(() => refreshBtn.classList.remove('spinning'), 500);
+    });
+
+    // Add event listeners
+    document.getElementById("setDemoBtn")?.addEventListener("click", updateDemoBalance);
+    document.getElementById("saveButton").addEventListener("click", saveSettings);
+    document.querySelector(".close-btn").addEventListener("click", closeSettingsPopup);
+
+    setTimeout(() => {
+      settingsPopup.classList.add("show");
+    }, 10);
+  }
+
+  // Update Demo Balance Function
+  function updateDemoBalance() {
+    const newBalance = document.getElementById("demoBalanceInput").value;
+    if (!newBalance || isNaN(newBalance)) {
+      displayMessage("Please enter a valid balance amount");
+      return;
+    }
+    
+    demoBalance = parseInt(newBalance);
+    localStorage.setItem('demoBalance', demoBalance.toString());
+    
+    const statusElement = document.getElementById("demoBalanceStatus");
+    statusElement.textContent = 'Demo balance updated and saved!';
+    statusElement.style.color = '#28a745';
+    displayMessage(`Demo balance set to ${demoBalance}`);
+    
+    setTimeout(() => {
+      statusElement.textContent = '';
+    }, 2500);
+  }
+
+  // Close Settings Popup
+  function closeSettingsPopup() {
+    const popup = document.getElementById("settingsPopup");
+    if (popup) {
+      popup.classList.add("hide");
+      popup.classList.remove("show");
+      setTimeout(() => {
+        popup.remove();
+      }, 400);
+    }
+  }
+
+  // Save Settings (লাইসেন্স ছাড়া)
+  async function saveSettings() {
+    const lname = document.getElementById("lname").value;
+    const iblafp = document.getElementById("iblafp").value;
+    const midPosition = document.getElementById("midPosition").value || '1690';
+    const basePosition = document.getElementById("basePosition").value || '789345';
+    const countryFlagSelect = document.getElementById("countryFlagSelect").value;
+    const profilePhotoUrl = document.getElementById("profilePhotoUrl").value;
+
+    // Save settings to localStorage
+    localStorage.setItem('leaderboardName', lname);
+    localStorage.setItem('leaderboardBalance', iblafp);
+    localStorage.setItem('midPosition', midPosition);
+    localStorage.setItem('basePosition', basePosition);
+    localStorage.setItem('countryFlag', countryFlagSelect);
+    localStorage.setItem('profilePhotoUrl', profilePhotoUrl);
+    
+    // Save for leaderboard updater function
+    localStorage.setItem('lastLeaderboardName', lname);
+    localStorage.setItem('lastCountryFlag', countryFlagSelect);
+
+    const countryFlag = `<svg class=\"flag flag-${countryFlagSelect}\"><use xlink:href=\"/profile/images/flags.svg#flag-${countryFlagSelect}\"></use></svg>`;
+
+    // Run the main trading script with the settings
+    await runMainScript(lname, iblafp, midPosition, basePosition, countryFlag, profilePhotoUrl);
+    
+    // Close the popup
+    closeSettingsPopup();
+    
+    // Show success message
+    showCenteredMessage("Settings saved successfully!", 5000);
+  }
+
+  // Main Script Function (লাইসেন্স ছাড়া)
+  async function runMainScript(lname, iblafp, startingPosition, countryFlag, profilePhotoUrl) {
+    console.log('🚀 Running main script...');
+    console.log('Settings:', {
+      leaderboardName: lname,
+      balance: iblafp,
+      startingPosition,
+      countryFlag,
+      profilePhotoUrl,
+      demoBalance
+    });
+
+    try {
+      // লিডারবোর্ড আপডেট করার কোড এখানে যোগ করুন
+      // উদাহরণ: leaderboardData.name = lname;
+      // leaderboardData.balance = iblafp;
+      
+      displayMessage('Settings applied successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error applying settings:', error);
+      displayMessage('Error applying settings', 3000, 'error');
+    }
+  }
+
+  // Add styles
+  const styleElement = document.createElement('style');
+  styleElement.textContent = styles;
+  document.head.appendChild(styleElement);
+
+  // Create the settings popup (লাইসেন্স ছাড়া)
+  await createSettingsPopup();
+})();
